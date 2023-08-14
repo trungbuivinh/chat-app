@@ -1,14 +1,14 @@
 package com.chatapp.chatserver.config;
 
-import com.chatapp.chatserver.chat.ChatMessage;
-import com.chatapp.chatserver.chat.MessageType;
-import jakarta.websocket.Session;
+import com.chatapp.chatserver.model.Message;
+import com.chatapp.chatserver.model.Status;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 @Component
@@ -25,11 +25,25 @@ public class WebSocketEventListener {
         String username = (String) headerAccessor.getSessionAttributes().get("username");
         if (username != null) {
             log.info("User disconnected: {}", username);
-            var chatMessage = ChatMessage.builder()
-                    .type(MessageType.LEAVE)
-                    .sender(username)
+            var chatMessage = Message.builder()
+                    .status(Status.LEAVE)
+                    .senderName(username)
                     .build();
-            messageTemplate.convertAndSend("/topic/public", chatMessage);
+            messageTemplate.convertAndSend("/chatroom/public", chatMessage);
+        }
+    }
+
+    @EventListener
+    public void handleWebSocketConnectListener(SessionConnectEvent event) {
+        StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
+        String username = (String) headerAccessor.getSessionAttributes().get("username");
+        if (username != null) {
+            log.info("User connected: {}", username);
+            var chatMessage = Message.builder()
+                    .status(Status.JOIN)
+                    .senderName(username)
+                    .build();
+            messageTemplate.convertAndSend("/chatroom/public", chatMessage);
         }
     }
 }
